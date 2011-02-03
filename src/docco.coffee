@@ -146,6 +146,8 @@ languages =
     name: 'objc', symbol: '//'
   '.hs':
     name: 'haskell', symbol: '--'
+  '.as':
+    name: 'actionscript', symbol: '//'
 
 # Build out the appropriate matchers and delimiters for each language.
 for ext, l of languages
