@@ -72,8 +72,6 @@ parse = (source, code) ->
   save = (docs, code) ->
     sections.push docs_text: docs, code_text: code
   
-  return unless language;
-  
   for line in lines
     if line.match(language.comment_matcher) and not line.match(language.comment_filter)
       if has_code
@@ -95,7 +93,6 @@ parse = (source, code) ->
 # wherever our markers occur.
 highlight = (source, sections, callback) ->
   language = get_language source
-  return unless language;
   
   pygments = spawn 'pygmentize', ['-l', language.name, '-f', 'html', '-O', 'encoding=utf-8']
   output   = ''
@@ -131,6 +128,7 @@ generate_html = (source, sections) ->
 # (the JavaScript implementation of Markdown).
 fs       = require 'fs'
 path     = require 'path'
+findit   = require 'findit'
 showdown = require('./../vendor/showdown').Showdown
 {spawn, exec} = require 'child_process'
 
@@ -196,11 +194,6 @@ source_file = (depth, filepath) ->
 ensure_directory = (dir, callback) ->
   exec 'mkdir -p ' + dir, -> callback()
   
-read_source = (filepath, callback) ->
-  fs.stat filepath, (err, stats) -> 
-    child_files = fs.readdirSync(filepath) if stats.isDirectory()
-    callback child_files
-
 # Micro-templating, originally by John Resig, borrowed by way of
 # [Underscore.js](http://documentcloud.github.com/underscore/).
 template = (str) ->
@@ -228,6 +221,9 @@ highlight_start = '<div class="highlight"><pre>'
 # The end of each Pygments highlight block.
 highlight_end   = '</pre></div>'
 
+# The set of all targets passed in from the command line
+targets = []
+
 # The set of all files known as we recursively walk any directories
 files = []
 
@@ -240,14 +236,19 @@ generate = this.generate = (targets, options) ->
   if targets.length
     ensure_directory 'docs', ->
       fs.writeFile 'docs/docco.css', docco_styles
-      files = targets
+      targets = targets
       settings = options
-      next_file = -> 
-        file = files.shift()
-        read_source file, (child_files) ->
-          if child_files
-            files = files.concat(child_files.map (child) -> path.join(file, child))
-            require('eyes').inspect(files) if child_files.indexOf 'controller' != -1
-            return next_file()
-          generate_documentation file, next_file if files.length
-      next_file()
+      x = 0
+      
+      generate_next = ->
+        file = files[++x]
+        generate_documentation file, generate_next unless !file
+      
+      next_target = -> 
+        target = targets.shift()
+        return generate_next() if !target 
+        search = findit.findSync target
+        files = files.concat search.filter (file) -> 
+          fs.statSync(file).isFile() && get_language path.basename(file)
+        next_target()
+      next_target()
