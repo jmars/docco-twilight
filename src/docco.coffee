@@ -71,7 +71,9 @@ parse = (source, code) ->
 
   save = (docs, code) ->
     sections.push docs_text: docs, code_text: code
-
+  
+  return unless language;
+  
   for line in lines
     if line.match(language.comment_matcher) and not line.match(language.comment_filter)
       if has_code
@@ -93,6 +95,8 @@ parse = (source, code) ->
 # wherever our markers occur.
 highlight = (source, sections, callback) ->
   language = get_language source
+  return unless language;
+  
   pygments = spawn 'pygmentize', ['-l', language.name, '-f', 'html', '-O', 'encoding=utf-8']
   output   = ''
   pygments.stderr.addListener 'data',  (error)  ->
@@ -114,12 +118,12 @@ highlight = (source, sections, callback) ->
 # found in `resources/docco.jst`
 generate_html = (source, sections) ->
   title = path.basename source
-  dest  = destination source
-  html  = docco_template {
-    title: title, sections: sections, sources: sources, path: path, destination: destination
-  }
-  console.log "docco: #{source} -> #{dest}"
-  fs.writeFile dest, html
+  destination source, (dest, depth) -> 
+    html  = docco_template {
+      title: title, sections: sections, sources: files, path: path, source_file: source_file, depth: depth
+    }
+    console.log "docco: #{source} -> #{dest}"
+    fs.writeFile dest, html
 
 #### Helpers & Setup
 
@@ -173,12 +177,29 @@ get_language = (source) -> languages[path.extname(source)]
 
 # Compute the destination HTML path for an input source file path. If the source
 # is `lib/example.coffee`, the HTML will be at `docs/example.html`
-destination = (filepath) ->
-  'docs/' + path.basename(filepath, path.extname(filepath)) + '.html'
+destination = (filepath, callback) ->
+  dirs = path.dirname(filepath).split('/')
+  dest = 'docs/'
+  dest += dirs.slice(1).join('/') + '/' if settings.dirs
+  ensure_directory dest, -> 
+    dest += path.basename(filepath, path.extname(filepath)) + '.html'
+    callback dest, dirs.length
+
+source_file = (depth, filepath) ->
+  dirs = path.dirname(filepath).split('/')
+  dest = ''
+  dest += new Array(depth).join('../') + dirs.slice(1).join('/') + '/' if settings.dirs
+  dest += path.basename(filepath, path.extname(filepath)) + '.html'
+  return dest
 
 # Ensure that the destination directory exists.
-ensure_directory = (callback) ->
-  exec 'mkdir -p docs', -> callback()
+ensure_directory = (dir, callback) ->
+  exec 'mkdir -p ' + dir, -> callback()
+  
+read_source = (filepath, callback) ->
+  fs.stat filepath, (err, stats) -> 
+    child_files = fs.readdirSync(filepath) if stats.isDirectory()
+    callback child_files
 
 # Micro-templating, originally by John Resig, borrowed by way of
 # [Underscore.js](http://documentcloud.github.com/underscore/).
@@ -207,13 +228,26 @@ highlight_start = '<div class="highlight"><pre>'
 # The end of each Pygments highlight block.
 highlight_end   = '</pre></div>'
 
+# The set of all files known as we recursively walk any directories
+files = []
+
+# The settings passed in from the command line
+settings = {}
+
 # Run the script.
 # For each source file passed in as an argument, generate the documentation.
-sources = process.ARGV.sort()
-if sources.length
-  ensure_directory ->
-    fs.writeFile 'docs/docco.css', docco_styles
-    files = sources.slice(0)
-    next_file = -> generate_documentation files.shift(), next_file if files.length
-    next_file()
-
+generate = this.generate = (targets, options) -> 
+  if targets.length
+    ensure_directory 'docs', ->
+      fs.writeFile 'docs/docco.css', docco_styles
+      files = targets
+      settings = options
+      next_file = -> 
+        file = files.shift()
+        read_source file, (child_files) ->
+          if child_files
+            files = files.concat(child_files.map (child) -> path.join(file, child))
+            require('eyes').inspect(files) if child_files.indexOf 'controller' != -1
+            return next_file()
+          generate_documentation file, next_file if files.length
+      next_file()
