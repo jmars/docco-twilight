@@ -2,12 +2,7 @@
 
 var path = require('path'),
     fs = require('fs'),
-    argv = require('optimist').argv,
     lib = path.join(path.dirname(fs.realpathSync(__filename)), '../lib'),
     docco = require(lib + '/docco.js');
-
-var options = {
-  dirs: argv.dirs
-}
     
-docco.generate(argv._, options);
+docco.generate(process.argv.slice(2, process.argv.length));

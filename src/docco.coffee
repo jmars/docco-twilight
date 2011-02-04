@@ -49,7 +49,7 @@ generate_documentation = (source, callback) ->
     throw error if error
     sections = parse source, code
     highlight source, sections, ->
-      generate_html source, sections
+      generate_html path.normalize(source), sections
       callback()
 
 # Given a string of source code, parse out each comment and the code that
@@ -178,16 +178,17 @@ get_language = (source) -> languages[path.extname(source)]
 destination = (filepath, callback) ->
   dirs = path.dirname(filepath).split('/')
   dest = 'docs/'
-  dest += dirs.slice(1).join('/') + '/' if settings.dirs
+  dest += dirs.slice(1).join('/') + '/'
   ensure_directory dest, -> 
     dest += path.basename(filepath, path.extname(filepath)) + '.html'
-    callback dest, dirs.length
+    callback path.normalize(dest), dirs.length
 
 source_file = (depth, filepath) ->
   dirs = path.dirname(filepath).split('/')
   dest = ''
-  dest += new Array(depth).join('../') + dirs.slice(1).join('/') + '/' if settings.dirs
+  dest += new Array(depth).join('../') + dirs.slice(1).join('/') + '/'
   dest += path.basename(filepath, path.extname(filepath)) + '.html'
+  dest = dest.slice(1) if dest[0] == '/'
   return dest
 
 # Ensure that the destination directory exists.
@@ -232,13 +233,12 @@ settings = {}
 
 # Run the script.
 # For each source file passed in as an argument, generate the documentation.
-generate = this.generate = (targets, options) -> 
+generate = this.generate = (targets) -> 
   if targets.length
     ensure_directory 'docs', ->
       fs.writeFile 'docs/docco.css', docco_styles
       targets = targets
-      settings = options
-      x = 0
+      x = -1
       
       generate_next = ->
         file = files[++x]
