@@ -7,13 +7,14 @@
 #
 # If you install Docco, you can run it from the command-line:
 #
-#     docco src/*.coffee
+#     docco src/
 # or
 #
-#     docco src/*.js
+#     docco src/
 #
-# ...will generate linked HTML documentation for the named source files, saving
-# it into a `docs` folder.
+# ...will generate linked HTML documentation for all files in the directory tree 
+# below the target directoy, inclusive. These files will be copied to the `docs` folder
+# preserving the directory structure.
 #
 # The [source for Docco](http://github.com/jashkenas/docco) is available on GitHub,
 # and released under the MIT license.
