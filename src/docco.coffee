@@ -157,7 +157,7 @@ for ext, l of languages
   # Does the line begin with a comment?
   l.comment_matcher = new RegExp('^\\s*' + l.symbol + '\\s?')
 
-  # Ignore [hashbangs](http://en.wikipedia.org/wiki/Shebang_(Unix))
+  # Ignore [hashbangs](http://en.wikipedia.org/wiki/Shebang_%28Unix%29)
   # and interpolations...
   l.comment_filter = new RegExp('(^#![/]|^\\s*#\\{)')
 
@@ -183,6 +183,7 @@ destination = (filepath, callback) ->
     dest += path.basename(filepath, path.extname(filepath)) + '.html'
     callback path.normalize(dest), dirs.length
 
+# Compute the relative path for an HTML file when inside of docco.jst
 source_file = (depth, filepath) ->
   dirs = path.dirname(filepath).split('/')
   dest = ''
@@ -231,8 +232,7 @@ files = []
 # The settings passed in from the command line
 settings = {}
 
-# Run the script.
-# For each source file passed in as an argument, generate the documentation.
+# For each source file passed in targets, generate the documentation.
 generate = this.generate = (targets) -> 
   if targets.length
     ensure_directory 'docs', ->
