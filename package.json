@@ -18,7 +18,5 @@
     "lib" :       "./lib"
   },
   "main" :        "./lib/docco",
-  "bin": {
-    "docco":      "./bin/docco",
-  }
+   "bin": {"docco":      "./bin/docco"}
 }
